@@ -1,10 +1,19 @@
 resource "aws_vpc" "main" {
   cidr_block = var.network.vpc_cidr
+
+  tags = {
+    Name = "${var.main.name}-vpc"
+  }
 }
+
 resource "aws_security_group" "nsg" {
   count  = length(var.network.nsg)
   name   = "${var.main.name}-${var.network.nsg[count.index].name}"
   vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.main.name}-${var.network.nsg[count.index].name}"
+  }
 
   dynamic "ingress" {
     for_each = var.network.nsg[count.index].ingress

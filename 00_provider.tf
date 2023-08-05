@@ -16,3 +16,6 @@ terraform {
 provider "aws" {
   region = var.main.region
 }
+provider "tls" {
+
+}

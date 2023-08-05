@@ -26,3 +26,20 @@ variable "network" {
     }))
   })
 }
+variable "compute" {
+  type = object({
+    ami = object({
+      owners = string
+      filters = list(object({
+        name   = string
+        values = list(string)
+      }))
+    })
+    #instance = object({
+    #  server = object({
+    #    instance_type = string
+    #    count         = number
+    #  })
+    #})
+  })
+}
