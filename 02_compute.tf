@@ -104,68 +104,74 @@ resource "aws_instance" "server" {
   }
 }
 
-# resource "aws_instance" "client" {
-#   ami                    = data.aws_ami.ubuntu.id
-#   instance_type          = var.client_instance_type
-#   key_name               = aws_key_pair.generated_key.key_name
-#   vpc_security_group_ids = [aws_security_group.nomad_ui_ingress.id, aws_security_group.ssh_ingress.id, aws_security_group.clients_ingress.id, aws_security_group.allow_all_internal.id]
-#   count                  = var.client_count
-#
-#   connection {
-#     type        = "ssh"
-#     user        = "ubuntu"
-#     private_key = tls_private_key.private_key.private_key_pem
-#     host        = self.public_ip
-#   }
-#
-#   # NomadJoinTag is necessary for nodes to automatically join the cluster
-#   tags = merge(
-#     {
-#       "Name" = "${var.name}-client-${count.index}"
-#     },
-#     {
-#       "NomadJoinTag" = "auto-join"
-#     },
-#     {
-#       "NomadType" = "client"
-#     }
-#   )
-#
-#   root_block_device {
-#     volume_type           = "gp2"
-#     volume_size           = var.root_block_device_size
-#     delete_on_termination = "true"
-#   }
-#
-#   ebs_block_device {
-#     device_name           = "/dev/xvdd"
-#     volume_type           = "gp2"
-#     volume_size           = "50"
-#     delete_on_termination = "true"
-#   }
-#
-#   provisioner "remote-exec" {
-#     inline = ["sudo mkdir -p /ops", "sudo chmod 777 -R /ops"]
-#   }
-#
-#   provisioner "file" {
-#     source      = "../shared"
-#     destination = "/ops"
-#   }
-#
-#   user_data = templatefile("../shared/data-scripts/user-data-client.sh", {
-#     region        = var.region
-#     cloud_env     = "aws"
-#     retry_join    = local.retry_join
-#     nomad_version = var.nomad_version
-#   })
-#   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
-#
-#   metadata_options {
-#     http_endpoint          = "enabled"
-#     instance_metadata_tags = "enabled"
-#   }
-# }
+resource "aws_instance" "client" {
+  ami           = data.aws_ami.os.id
+  instance_type = var.compute.type.server.instance_type
+  key_name      = aws_key_pair.generated_key.key_name
+  subnet_id     = aws_subnet.main.id
+  # vpc_security_group_ids = [aws_security_group.nomad_ui_ingress.id, aws_security_group.ssh_ingress.id, aws_security_group.allow_all_internal.id]
+  vpc_security_group_ids = [
+    for nsg_name in var.compute.type.server.nsgs :
+    aws_security_group.nsg[nsg_name].id
+  ]
+  # associate_public_ip_address = true
+  count = var.compute.type.server.count
+
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = tls_private_key.private_key.private_key_pem
+    host        = self.public_ip
+  }
+
+  # NomadJoinTag is necessary for nodes to automatically join the cluster
+  tags = merge(
+    {
+      "Name" = "${var.main.name}-client-${count.index}"
+    },
+    {
+      "NomadJoinTag" = "auto-join"
+    },
+    {
+      "NomadType" = "client"
+    }
+  )
+
+  root_block_device {
+    volume_type           = var.compute.type.client.device.volume_type
+    volume_size           = var.compute.type.client.device.volume_size
+    delete_on_termination = var.compute.type.client.device.delete_on_termination
+  }
+
+  ebs_block_device {
+    device_name           = "/dev/xvdd"
+    volume_type           = "gp2"
+    volume_size           = "50"
+    delete_on_termination = "true"
+  }
+
+  provisioner "remote-exec" {
+    inline = ["sudo mkdir -p /ops", "sudo chmod 777 -R /ops"]
+  }
+
+  provisioner "file" {
+    source      = "nomad_scripts"
+    destination = "/ops"
+  }
+
+  user_data = templatefile("nomad_scripts/data-scripts/user-data-client.sh", {
+    region        = var.main.region
+    cloud_env     = "aws"
+    retry_join    = local.retry_join
+    nomad_version = var.main.nomad_version
+  })
+  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
+
+  metadata_options {
+    http_endpoint          = "enabled"
+    instance_metadata_tags = "enabled"
+  }
+}
 #
 data "aws_iam_policy_document" "instance_role" {
   statement {

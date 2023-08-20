@@ -50,3 +50,9 @@ variable "compute" {
     }))
   })
 }
+variable "oidc" {
+  type = object({
+    aws_account_id      = string
+    github_user_content = string
+  })
+}
