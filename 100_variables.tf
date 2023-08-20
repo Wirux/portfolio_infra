@@ -1,14 +1,17 @@
 variable "main" {
   type = object({
-    region = string
-    name   = string
+    region        = string
+    name          = string
+    nomad_version = string
+
   })
 }
 variable "network" {
   type = object({
-    vpc_cidr = string
-    nsg = list(object({
-      name = string,
+    vpc_cidr    = string
+    subnet_cidr = string
+    nsg = map(object({
+      #name = string,
       ingress = list(object({
         from_port   = number,
         to_port     = number,
@@ -35,11 +38,15 @@ variable "compute" {
         values = list(string)
       }))
     })
-    #instance = object({
-    #  server = object({
-    #    instance_type = string
-    #    count         = number
-    #  })
-    #})
+    type = map(object({
+      instance_type = string
+      count         = string
+      nsgs          = list(string)
+      device = object({
+        volume_type           = string
+        volume_size           = number
+        delete_on_termination = string
+      })
+    }))
   })
 }
